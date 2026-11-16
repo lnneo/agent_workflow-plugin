@@ -1,0 +1,36 @@
+### AL ###
+#Template for AL projects for Dynamics 365 Business Central
+#launch.json folder
+.vscode/
+#Cache folder
+.alcache/
+#Symbols folder
+.alpackages/
+#Snapshots folder
+.snapshots/
+#Testing Output folder
+.output/
+#Extension App-file
+*.app
+#Rapid Application Development File
+rad.json
+#Translation Base-file
+*.g.xlf
+#License-files
+*.bclicense
+*.flf
+#Test results file
+TestResults.xml
+
+.DS_Store
+
+# Keep skills/build and rules/AGENTS.md tracked even if global gitignore ignores them
+!/skills/build/
+!/rules/
+!/rules/AGENTS.md
+
+# mcp local runtime
+tools/mcp/node_modules/
+tools/mcp/dist/
+tools/mcp/data/*.sqlite
+tools/mcp/data/*.sqlite-*

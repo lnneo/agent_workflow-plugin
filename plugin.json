@@ -1,0 +1,9 @@
+{
+  "name": "agent-workflow-plugin",
+  "version": "2.0.0",
+  "description": "Developer-driven 2-stage engineering workflow (/spec and /build) with Workspace Manifest (.md), /handoff-sync, unified HTTP MCP (pg, redis, handoff), and Live Activity Monitor (/viewer).",
+  "skills": "./skills/",
+  "commands": "./commands/",
+  "rules": "./rules/AGENTS.md",
+  "mcpServers": "./mcp_config.json"
+}

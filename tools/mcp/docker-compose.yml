@@ -1,0 +1,31 @@
+services:
+  mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: agent-workflow-mcp
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PORT: ${PORT:-3030}
+      MCP_PG_ENABLED: ${MCP_PG_ENABLED:-true}
+      MCP_REDIS_ENABLED: ${MCP_REDIS_ENABLED:-true}
+      MCP_HANDOFF_ENABLED: ${MCP_HANDOFF_ENABLED:-true}
+      PG_URL: ${PG_URL:-postgresql://postgres:postgres@host.docker.internal:5432/postgres}
+      REDIS_URL: ${REDIS_URL:-redis://host.docker.internal:6379}
+      HANDOFF_MCP_DB: ${HANDOFF_MCP_DB:-/app/data/handoff.sqlite}
+    ports:
+      - "${PORT:-3030}:${PORT:-3030}"
+    volumes:
+      - ./data:/app/data
+      - "${PROJECTS_DIR:-.}:${PROJECTS_DIR:-.}"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${PORT:-3030}/health >/dev/null 2>&1 || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
