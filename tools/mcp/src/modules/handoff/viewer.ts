@@ -411,7 +411,7 @@ const DASHBOARD_HTML = `<!doctype html>
           '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">' +
             '<select id="monSrc" onchange="monitorSource=this.value;renderMonitorTab()">' +
               '<option value="">All sources</option>' +
-              ['git', 'playwright', 'agent', 'pg', 'redis', 'handoff'].map(s => '<option value="' + s + '"' + (monitorSource === s ? ' selected' : '') + '>' + s + '</option>').join("") +
+              ['git', 'playwright', 'agent', 'pg', 'redis', 'handoff', 'backlog'].map(s => '<option value="' + s + '"' + (monitorSource === s ? ' selected' : '') + '>' + s + '</option>').join("") +
             '</select>' +
             '<select id="monStat" onchange="monitorStatus=this.value;renderMonitorTab()">' +
               '<option value="">All statuses</option>' +
