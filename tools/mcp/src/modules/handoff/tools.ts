@@ -40,7 +40,9 @@ export function registerTools(server: McpServer, store: HandoffStore): void {
       inputSchema: {
         slug: z.string().min(1),
         name: z.string().min(1),
-        timezone: z.string().min(1).optional()
+        timezone: z.string().min(1).optional(),
+        manifest_path: z.string().min(1).optional(),
+        deploy_order: z.array(z.string().min(1)).optional()
       }
     },
     async (input) => {
@@ -77,6 +79,7 @@ export function registerTools(server: McpServer, store: HandoffStore): void {
         workspace_slug: z.string().min(1),
         slug: z.string().min(1),
         name: z.string().min(1),
+        role: z.string().min(1).optional(),
         repo_path: z.string().min(1).optional(),
         remote_url: z.string().min(1).optional(),
         default_branch: z.string().min(1).optional()
@@ -577,6 +580,84 @@ export function registerTools(server: McpServer, store: HandoffStore): void {
     async (input) => {
       try {
         return jsonResult(store.logActivity(input));
+      } catch (error) {
+        return errorResult(error);
+      }
+    }
+  );
+
+  server.registerTool(
+    "handoff_bulk_sync",
+    {
+      title: "Bulk Sync Workspace Git State",
+      description:
+        "Host-driven sync: accept workspace manifest metadata, projects (with roles), tasks (auto-linked across projects), commits, and idempotent deployments scanned by the AI in the current workspace, saving everything in one SQLite transaction without mounting host repos in Docker.",
+      inputSchema: {
+        workspace: z.object({
+          slug: z.string().min(1),
+          name: z.string().min(1),
+          timezone: z.string().min(1).optional(),
+          manifest_path: z.string().min(1).optional(),
+          deploy_order: z.array(z.string().min(1)).optional()
+        }),
+        projects: z.array(
+          z.object({
+            slug: z.string().min(1),
+            name: z.string().min(1),
+            role: z.string().min(1).optional(),
+            repo_path: z.string().min(1).optional(),
+            remote_url: z.string().min(1).optional(),
+            default_branch: z.string().min(1).optional()
+          })
+        ),
+        tasks: z
+          .array(
+            z.object({
+              slug: z.string().min(1),
+              title: z.string().min(1),
+              project_slug: z.string().min(1),
+              related_projects: z.array(z.string().min(1)).optional(),
+              status: z.enum(TASK_STATUSES).optional(),
+              target_branch: z.string().min(1).optional(),
+              base_branch: z.string().min(1).optional(),
+              base_commit: z.string().min(1).optional(),
+              commits: z
+                .array(
+                  z.object({
+                    project_slug: z.string().min(1).optional(),
+                    commit_hash: z.string().min(1),
+                    branch: z.string().min(1),
+                    subject: z.string().min(1),
+                    ai_change: z.string().optional(),
+                    files_changed: z.array(z.string()).optional(),
+                    committed_at: z.string().optional()
+                  })
+                )
+                .optional(),
+              deployments: z
+                .array(
+                  z.object({
+                    project_slug: z.string().min(1).optional(),
+                    source_branch: z.string().min(1),
+                    target_branch: z.string().min(1),
+                    env: z.enum(ENV_NAMES),
+                    commit_hash: z.string().min(1).optional(),
+                    status: z.enum(DEPLOY_STATUSES).optional(),
+                    deployed_by: z.string().min(1),
+                    deployed_at: z.string().optional(),
+                    deploy_ref: z.string().min(1).optional(),
+                    notes: z.string().optional()
+                  })
+                )
+                .optional()
+            })
+          )
+          .optional()
+      }
+    },
+    async (input) => {
+      try {
+        return jsonResult(store.bulkSync(input));
       } catch (error) {
         return errorResult(error);
       }
