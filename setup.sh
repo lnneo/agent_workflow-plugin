@@ -126,11 +126,20 @@ for dest_dir in $DEST_DIRS; do
     if [ "$dest_dir" = "$ANTIGRAVITY_DEST" ] && [ -f "$SCRIPT_DIR/plugin.json" ]; then
         plugin_dir="$HOME/.gemini/config/plugins/agent-workflow-plugin"
         [ -L "$plugin_dir" ] && rm "$plugin_dir"
-        mkdir -p "$plugin_dir/rules" "$plugin_dir/skills" "$plugin_dir/commands"
+        mkdir -p "$plugin_dir/rules" "$plugin_dir/skills" "$plugin_dir/commands" "$plugin_dir/hooks"
 
         cp "$SCRIPT_DIR/plugin.json" "$plugin_dir/plugin.json"
         [ -f "$SCRIPT_DIR/mcp_config.json" ] && cp "$SCRIPT_DIR/mcp_config.json" "$plugin_dir/mcp_config.json"
+        [ -f "$SCRIPT_DIR/hooks.json" ] && cp "$SCRIPT_DIR/hooks.json" "$plugin_dir/hooks.json"
         [ -f "$SCRIPT_DIR/rules/AGENTS.md" ] && cp "$SCRIPT_DIR/rules/AGENTS.md" "$plugin_dir/rules/AGENTS.md"
+
+        if [ -d "$SCRIPT_DIR/hooks" ]; then
+            for hook_file in "$SCRIPT_DIR/hooks"/*.sh; do
+                [ -f "$hook_file" ] || continue
+                cp "$hook_file" "$plugin_dir/hooks/$(basename "$hook_file")"
+                chmod +x "$plugin_dir/hooks/$(basename "$hook_file")"
+            done
+        fi
 
         if [ -d "$SCRIPT_DIR/commands" ]; then
             for cmd_file in "$SCRIPT_DIR/commands"/*.md; do
