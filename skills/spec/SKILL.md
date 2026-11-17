@@ -52,3 +52,7 @@ Prepare and lock an **Executable Spec** with the developer before any code chang
    - Wait for explicit developer confirmation (`OK` / edits).
    - Once confirmed, ensure workspace, projects, and task exist (`handoff_upsert_workspace`, `handoff_upsert_project`), then call `handoff_confirm_spec` with the final Spec and any `related_projects`.
    - Stop and report that the Spec is locked and ready for `/build` on a working branch.
+
+## Red Flags (Strictly Forbidden in `/spec`)
+- Never edit or create repository source files during `/spec`.
+- Never skip Step 3 alignment or silently assume requirements/scope without developer confirmation.
