@@ -1,13 +1,13 @@
 {
   "mcpServers": {
     "pg": {
-      "url": "http://localhost:3030/pg"
+      "url": "http://localhost:48048/pg"
     },
     "redis": {
-      "url": "http://localhost:3030/redis"
+      "url": "http://localhost:48048/redis"
     },
     "handoff": {
-      "url": "http://localhost:3030/handoff"
+      "url": "http://localhost:48048/handoff"
     }
   }
 }
