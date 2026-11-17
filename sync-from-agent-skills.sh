@@ -72,7 +72,7 @@ fi
 
 is_local_only() {
   case "$1" in
-    context-handoff|prefer-ripgrep-search|spec|build|handoff-sync|proposal-writer|tech-spec-writer) return 0 ;;
+    context-handoff|prefer-ripgrep-search|init|spec|build|handoff-sync|proposal-writer|tech-spec-writer) return 0 ;;
     *) return 1 ;;
   esac
 }
