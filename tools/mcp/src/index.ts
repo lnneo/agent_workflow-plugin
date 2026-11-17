@@ -1,6 +1,7 @@
 import { config } from "dotenv";
 import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
 import type { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { createBacklogServer, type BacklogConfig } from "./modules/backlog/index.js";
 import {
   closeDatabase,
   createHandoffServer,
@@ -36,10 +37,11 @@ const pgEnabled = parseBool(
 );
 const redisEnabled = parseBool(process.env.MCP_REDIS_ENABLED, false);
 const handoffEnabled = parseBool(process.env.MCP_HANDOFF_ENABLED, true);
+const backlogEnabled = parseBool(process.env.MCP_BACKLOG_ENABLED, false);
 
-if (!pgEnabled && !redisEnabled && !handoffEnabled) {
+if (!pgEnabled && !redisEnabled && !handoffEnabled && !backlogEnabled) {
   console.error(
-    "Error: no MCP service enabled. Set at least one of MCP_PG_ENABLED, MCP_REDIS_ENABLED, MCP_HANDOFF_ENABLED to true in .env.",
+    "Error: no MCP service enabled. Set at least one of MCP_PG_ENABLED, MCP_REDIS_ENABLED, MCP_HANDOFF_ENABLED, MCP_BACKLOG_ENABLED to true in .env.",
   );
   process.exit(1);
 }
@@ -48,6 +50,25 @@ if (pgEnabled && !PG_URL) {
   console.error("Error: PG_URL is required when MCP_PG_ENABLED=true");
   process.exit(1);
 }
+
+if (backlogEnabled && (!process.env.BACKLOG_DOMAIN || !process.env.BACKLOG_API_KEY)) {
+  console.error("Error: BACKLOG_DOMAIN and BACKLOG_API_KEY are required when MCP_BACKLOG_ENABLED=true");
+  process.exit(1);
+}
+
+const backlogConfig: BacklogConfig | null = backlogEnabled
+  ? {
+      domain: process.env.BACKLOG_DOMAIN!,
+      apiKey: process.env.BACKLOG_API_KEY!,
+      useFields: parseBool(process.env.BACKLOG_OPTIMIZE_RESPONSE, false),
+      maxTokens: parseInt(process.env.BACKLOG_MAX_TOKENS || "50000", 10),
+      prefix: process.env.BACKLOG_PREFIX || "",
+      enabledToolsets: (process.env.BACKLOG_TOOLSETS || "all")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+    }
+  : null;
 
 const pgRegistry = pgEnabled ? new PgRegistry(PG_URL!) : null;
 const redisRegistry = redisEnabled
@@ -72,6 +93,7 @@ const handoffStore = handoffDb ? new HandoffStore(handoffDb) : null;
 const pgTransports = new Map<string, StreamableHTTPServerTransport>();
 const redisTransports = new Map<string, StreamableHTTPServerTransport>();
 const handoffTransports = new Map<string, StreamableHTTPServerTransport>();
+const backlogTransports = new Map<string, StreamableHTTPServerTransport>();
 
 const app = createMcpExpressApp();
 
@@ -83,6 +105,7 @@ app.get("/health", (_req, res) => {
       pg: Boolean(pgRegistry),
       redis: Boolean(redisRegistry),
       handoff: Boolean(handoffStore),
+      backlog: Boolean(backlogConfig),
     },
   });
 });
@@ -140,6 +163,15 @@ if (handoffStore && handoffDb && handoffDbPath) {
   );
   registerHandoffViewer(app, handoffDb, handoffStore, handoffDbPath);
 }
+if (backlogConfig) {
+  registerMcpEndpoint(
+    app,
+    "/backlog",
+    backlogTransports,
+    () => createBacklogServer(backlogConfig),
+    { onToolCall: logToolCall },
+  );
+}
 
 async function start() {
   const server = app.listen(PORT, "0.0.0.0", () => {
@@ -151,6 +183,7 @@ async function start() {
       console.error(`  HANDOFF: http://localhost:${PORT}/handoff`);
       console.error(`  VIEWER:  http://localhost:${PORT}/viewer`);
     }
+    if (backlogEnabled) console.error(`  BACKLOG: http://localhost:${PORT}/backlog`);
   });
 
   if (pgRegistry) {
@@ -195,6 +228,7 @@ async function start() {
       ...Array.from(pgTransports.values()).map((t) => t.close().catch(() => {})),
       ...Array.from(redisTransports.values()).map((t) => t.close().catch(() => {})),
       ...Array.from(handoffTransports.values()).map((t) => t.close().catch(() => {})),
+      ...Array.from(backlogTransports.values()).map((t) => t.close().catch(() => {})),
       pgRegistry ? pgRegistry.shutdown().catch(() => {}) : Promise.resolve(),
       redisRegistry ? redisRegistry.shutdown().catch(() => {}) : Promise.resolve(),
     ]);

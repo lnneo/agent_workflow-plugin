@@ -8,6 +8,9 @@
     },
     "handoff": {
       "url": "http://localhost:48048/handoff"
+    },
+    "backlog": {
+      "url": "http://localhost:48048/backlog"
     }
   }
 }
