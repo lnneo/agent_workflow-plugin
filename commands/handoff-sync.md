@@ -2,10 +2,9 @@
 description: Sync all Git branches, commits, merge/cherry-pick progression (develop, staging, main), and stale/missing source handoffs into handoff MCP.
 ---
 
-Run the `handoff-sync` workflow on the current workspace or repository:
+Run the `handoff-sync` workflow from the current workspace on the host:
 
-1. Check for `.ai/workspace.md` or `WORKSPACE.md`:
-   - If present, call `handoff_sync_workspace` to register all projects (`FE`, `BE`, `Infra`), scan all branches, and auto-link shared tasks.
-   - If absent and this is a multi-project workspace, offer to create `.ai/workspace.md` first; otherwise call `handoff_sync_git_state` for the single repo.
-2. Summarize all scanned projects & branches with their `synced_status` (`unmerged`, `develop`, `develop + staging`, `develop + staging + main`), commit counts, and `handoff_state` (`missing`, `stale`, `fresh`).
-3. Ask the developer which `missing` or `stale` branches (or active branch by default) should have their source code inspected to generate/refresh `handoff_save_handoff_snapshot` (preserving the workspace manifest structure).
+1. Read `.ai/workspace.md` or `WORKSPACE.md` (if present) to get the workspace slug, `deploy_order`, and all projects (`FE`, `BE`, `Infra`).
+2. Run `git` directly in the current workspace across each project to collect all branches (`develop`, `staging`, `main`, `feature/*`, `fix/*`, ...), commits (`hash`, `subject`, `files_changed`, `committed_at`), and merge/cherry-pick status (`develop`, `develop + staging`, `develop + staging + main`, or `unmerged`).
+3. Send the collected payload to `handoff` MCP in one call via `handoff_bulk_sync`.
+4. Summarize all projects & branches with their `synced_status`, commit counts, and missing/stale handoffs, then ask which branches should have `handoff_save_handoff_snapshot` refreshed from source code.

@@ -1158,4 +1158,180 @@ export class HandoffStore {
   syncWorkspace(input: SyncWorkspaceInput): SyncWorkspaceResult {
     return runSyncWorkspace(this.db, this, input);
   }
+
+  bulkSync(input: {
+    workspace: {
+      slug: string;
+      name: string;
+      timezone?: string;
+      manifest_path?: string;
+      deploy_order?: string[];
+    };
+    projects: Array<{
+      slug: string;
+      name: string;
+      role?: string;
+      repo_path?: string;
+      remote_url?: string;
+      default_branch?: string;
+    }>;
+    tasks?: Array<{
+      slug: string;
+      title: string;
+      project_slug: string;
+      related_projects?: string[];
+      status?: TaskStatus;
+      target_branch?: string;
+      base_branch?: string;
+      base_commit?: string;
+      commits?: Array<{
+        project_slug?: string;
+        commit_hash: string;
+        branch: string;
+        subject: string;
+        ai_change?: string;
+        files_changed?: string[];
+        committed_at?: string;
+      }>;
+      deployments?: Array<{
+        project_slug?: string;
+        source_branch: string;
+        target_branch: string;
+        env: EnvName;
+        commit_hash?: string;
+        status?: DeployStatus;
+        deployed_by: string;
+        deployed_at?: string;
+        deploy_ref?: string;
+        notes?: string;
+      }>;
+    }>;
+  }): {
+    workspace_slug: string;
+    projects_synced: number;
+    tasks_synced: number;
+    commits_synced: number;
+    deployments_added: number;
+  } {
+    const run = this.db.transaction(() => {
+      const ws = this.upsertWorkspace(input.workspace);
+      const projectMap = new Map<string, Project>();
+      for (const p of input.projects) {
+        const proj = this.upsertProject({
+          workspace_slug: ws.slug,
+          ...p
+        });
+        projectMap.set(proj.slug, proj);
+      }
+
+      let tasksSynced = 0;
+      let commitsSynced = 0;
+      let deploymentsAdded = 0;
+
+      for (const t of input.tasks ?? []) {
+        const existing = this.db
+          .prepare(`SELECT * FROM tasks WHERE workspace_id = ? AND slug = ?`)
+          .get(ws.id, t.slug) as Task | undefined;
+
+        const primaryProj =
+          projectMap.get(t.project_slug) ??
+          this.getProjectBySlug(ws.slug, t.project_slug);
+
+        let task: Task;
+        if (existing && existing.primary_project_id !== primaryProj.id) {
+          this.linkTaskProject(existing.id, primaryProj.id, "related");
+          task = existing;
+        } else {
+          task = this.upsertTask({
+            workspace_slug: ws.slug,
+            project_slug: primaryProj.slug,
+            slug: t.slug,
+            title: t.title,
+            status: t.status,
+            target_branch: t.target_branch,
+            base_branch: t.base_branch,
+            base_commit: t.base_commit
+          });
+        }
+
+        for (const relSlug of t.related_projects ?? []) {
+          if (relSlug === primaryProj.slug) continue;
+          const relProj =
+            projectMap.get(relSlug) ?? this.getProjectBySlug(ws.slug, relSlug);
+          this.linkTaskProject(task.id, relProj.id, "related");
+        }
+        tasksSynced++;
+
+        for (const c of t.commits ?? []) {
+          this.recordCommit({
+            workspace_slug: ws.slug,
+            project_slug: c.project_slug ?? primaryProj.slug,
+            task_slug: task.slug,
+            commit_hash: c.commit_hash,
+            branch: c.branch,
+            subject: c.subject,
+            ai_change: c.ai_change,
+            files_changed: c.files_changed,
+            committed_at: c.committed_at
+          });
+          commitsSynced++;
+        }
+
+        for (const d of t.deployments ?? []) {
+          const depProjSlug = d.project_slug ?? primaryProj.slug;
+          const depProj =
+            projectMap.get(depProjSlug) ??
+            this.getProjectBySlug(ws.slug, depProjSlug);
+          const depStatus: DeployStatus = d.status ?? "success";
+          const alreadyExists = this.db
+            .prepare(
+              `SELECT id FROM deployments
+               WHERE project_id = ? AND task_id = ? AND target_branch = ? AND status = ?
+               LIMIT 1`
+            )
+            .get(depProj.id, task.id, d.target_branch, depStatus) as
+            | { id: string }
+            | undefined;
+
+          if (!alreadyExists) {
+            this.recordDeploy({
+              workspace_slug: ws.slug,
+              project_slug: depProj.slug,
+              task_slug: task.slug,
+              source_branch: d.source_branch,
+              target_branch: d.target_branch,
+              env: d.env,
+              commit_hash: d.commit_hash,
+              status: depStatus,
+              deployed_by: d.deployed_by,
+              deployed_at: d.deployed_at,
+              deploy_ref: d.deploy_ref,
+              notes: d.notes
+            });
+            deploymentsAdded++;
+          }
+        }
+      }
+
+      return {
+        workspace_slug: ws.slug,
+        projects_synced: input.projects.length,
+        tasks_synced: tasksSynced,
+        commits_synced: commitsSynced,
+        deployments_added: deploymentsAdded
+      };
+    });
+
+    const result = run();
+    this.logActivity({
+      workspace_slug: result.workspace_slug,
+      stage: "sync",
+      source: "handoff",
+      action: "handoff_bulk_sync",
+      status: "success",
+      summary: `Bulk synced ${result.projects_synced} projects, ${result.tasks_synced} tasks, ${result.commits_synced} commits, +${result.deployments_added} deployments`,
+      details: result
+    });
+    return result;
+  }
 }
