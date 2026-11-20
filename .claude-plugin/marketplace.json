@@ -1,0 +1,16 @@
+{
+  "name": "agent-workflow-marketplace",
+  "owner": {
+    "name": "lnneo"
+  },
+  "metadata": {
+    "description": "Developer-driven 2-stage engineering workflow (/spec and /build) with Workspace Manifest (.md), /handoff-sync, unified HTTP MCP (pg, redis, handoff), and Live Activity Monitor (/viewer)."
+  },
+  "plugins": [
+    {
+      "name": "agent-workflow-plugin",
+      "source": "./",
+      "description": "Developer-driven 2-stage engineering workflow (/spec and /build) with Workspace Manifest (.md), /handoff-sync, unified HTTP MCP (pg, redis, handoff), and Live Activity Monitor (/viewer)."
+    }
+  ]
+}
