@@ -5,10 +5,12 @@ set -euo pipefail
 
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 DEST_SKILLS="${SCRIPT_DIR}/skills"
+DEST_REFS="${SCRIPT_DIR}/references"
 
 # Default: sibling checkout next to agent_workflow
-DEFAULT_SOURCE="$(CDPATH= cd -- "${SCRIPT_DIR}/../agent-skills" && pwd)/skills"
-SOURCE_SKILLS="${AGENT_SKILLS_DIR:-$DEFAULT_SOURCE}"
+DEFAULT_SOURCE_ROOT="$(CDPATH= cd -- "${SCRIPT_DIR}/../agent-skills" 2>/dev/null && pwd || true)"
+SOURCE_SKILLS="${AGENT_SKILLS_DIR:-${DEFAULT_SOURCE_ROOT:+${DEFAULT_SOURCE_ROOT}/skills}}"
+SOURCE_REFS="${AGENT_SKILLS_REFS_DIR:-${SOURCE_SKILLS:+$(dirname "$SOURCE_SKILLS")/references}}"
 
 DRY_RUN=0
 INCLUDE_NEW=1
@@ -64,6 +66,8 @@ if [ ! -d "$SOURCE_SKILLS" ]; then
   echo "Error: source skills directory not found: $SOURCE_SKILLS" >&2
   exit 1
 fi
+
+SOURCE_REFS="${AGENT_SKILLS_REFS_DIR:-$(dirname "$SOURCE_SKILLS")/references}"
 
 if [ ! -d "$DEST_SKILLS" ]; then
   echo "Error: destination skills directory not found: $DEST_SKILLS" >&2
@@ -180,15 +184,28 @@ if ship_row in text:
     if missing:
         text = text.replace(ship_row, ship_row + "\n" + "\n".join(missing), 1)
 
-# Prefer pack-local references path when this repo does not use ../../references.
-text = text.replace(
-    "`../../references/definition-of-done.md`",
-    "`references/definition-of-done.md`",
-)
-
 path.write_text(text)
 print("PATCH using-agent-skills (local overlays applied)")
 PY
+}
+
+sync_references() {
+  if [ -z "$SOURCE_REFS" ] || [ ! -d "$SOURCE_REFS" ]; then
+    echo "Warning: upstream references directory not found; skipping references sync." >&2
+    return 0
+  fi
+
+  if [ "$DRY_RUN" -eq 1 ]; then
+    echo "SYNC  references from $SOURCE_REFS"
+    return 0
+  fi
+
+  mkdir -p "$DEST_REFS"
+  for ref_file in "$SOURCE_REFS"/*.md; do
+    [ -f "$ref_file" ] || continue
+    cp "$ref_file" "$DEST_REFS/$(basename "$ref_file")"
+  done
+  echo "SYNC  references (*.md)"
 }
 
 UPDATED=0
@@ -245,6 +262,7 @@ for skill in context-handoff prefer-ripgrep-search; do
 done
 
 echo
+sync_references
 patch_using_agent_skills
 
 echo

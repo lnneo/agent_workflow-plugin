@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "pg": {
+      "type": "http",
+      "url": "http://localhost:48048/pg"
+    },
+    "redis": {
+      "type": "http",
+      "url": "http://localhost:48048/redis"
+    },
+    "handoff": {
+      "type": "http",
+      "url": "http://localhost:48048/handoff"
+    },
+    "backlog": {
+      "type": "http",
+      "url": "http://localhost:48048/backlog"
+    }
+  }
+}

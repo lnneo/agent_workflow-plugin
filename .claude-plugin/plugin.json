@@ -7,8 +7,6 @@
   },
   "repository": "https://github.com/lnneo/agent_workflow-plugin",
   "license": "MIT",
-  "skills": "./skills/",
-  "commands": "./commands/",
   "hooks": "./hooks.json",
-  "mcpServers": "./mcp_config.json"
+  "mcpServers": "./.mcp.json"
 }
