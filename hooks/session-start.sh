@@ -15,10 +15,20 @@ try:
 except Exception:
     data = {}
 
+is_antigravity = (
+    "workspacePaths" in data
+    or "conversationId" in data
+    or "hookEventName" in data
+)
+
 workspaces = data.get("workspacePaths") or []
+if not workspaces and data.get("cwd"):
+    workspaces = [data["cwd"]]
+
 if not workspaces:
     print("{}")
     sys.exit(0)
+
 
 def get_git_info(ws_path):
     try:
@@ -27,7 +37,7 @@ def get_git_info(ws_path):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            timeout=1.5
+            timeout=1.5,
         )
         if res.returncode != 0 or res.stdout.strip() != "true":
             return None
@@ -36,12 +46,13 @@ def get_git_info(ws_path):
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            timeout=1.5
+            timeout=1.5,
         )
         branch = branch_res.stdout.strip()
         return branch if branch else "detached-HEAD"
     except Exception:
         return None
+
 
 PROTECTED_BRANCHES = {"main", "master", "develop", "staging"}
 
@@ -84,14 +95,10 @@ if missing:
     )
 
 if protected_alerts:
-    sections.append(
-        "[PROTECTED BRANCH POLICY]\n" + "\n".join(protected_alerts)
-    )
+    sections.append("[PROTECTED BRANCH POLICY]\n" + "\n".join(protected_alerts))
 
 if working_reminders:
-    sections.append(
-        "[HANDOFF & WORKFLOW REMINDER]\n" + "\n".join(working_reminders)
-    )
+    sections.append("[HANDOFF & WORKFLOW REMINDER]\n" + "\n".join(working_reminders))
 
 if not sections:
     print("{}")
@@ -99,13 +106,29 @@ if not sections:
 
 msg = "\n\n".join(sections)
 
-print(json.dumps({
-    "injectSteps": [
-        {
-            "systemMessage": {
-                "systemMessage": msg
+if is_antigravity:
+    print(
+        json.dumps(
+            {
+                "injectSteps": [
+                    {
+                        "systemMessage": {
+                            "systemMessage": msg,
+                        }
+                    }
+                ]
             }
-        }
-    ]
-}))
+        )
+    )
+else:
+    print(
+        json.dumps(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "SessionStart",
+                    "additionalContext": msg,
+                }
+            }
+        )
+    )
 PY

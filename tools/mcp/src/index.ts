@@ -1,5 +1,6 @@
 import { config } from "dotenv";
-import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
+import express from "express";
+import { localhostHostValidation } from "@modelcontextprotocol/sdk/server/middleware/hostHeaderValidation.js";
 import type { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createBacklogServer, type BacklogConfig } from "./modules/backlog/index.js";
 import {
@@ -95,7 +96,9 @@ const redisTransports = new Map<string, StreamableHTTPServerTransport>();
 const handoffTransports = new Map<string, StreamableHTTPServerTransport>();
 const backlogTransports = new Map<string, StreamableHTTPServerTransport>();
 
-const app = createMcpExpressApp();
+const app = express();
+app.use(localhostHostValidation());
+app.use(express.json({ limit: "10mb" }));
 
 app.get("/health", (_req, res) => {
   res.json({
